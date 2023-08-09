@@ -1,10 +1,6 @@
 package ca.yorku.eecs;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.URLDecoder;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -51,4 +47,11 @@ class Utils {
 	    
         return buf.toString();
         }
+
+    public static void sendString(HttpExchange request, String data, int restCode) throws IOException{
+        request.sendResponseHeaders(restCode, data.length());
+        OutputStream os = request.getResponseBody();
+        os.write(data.getBytes());
+        os.close();
+    }
 }
