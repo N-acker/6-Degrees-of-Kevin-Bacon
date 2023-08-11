@@ -10,9 +10,11 @@ public class Handler implements HttpHandler{
 
     @Override
     public void handle(HttpExchange request) throws IOException {
-
+        DB neo = new DB();
         try {
             if (request.getRequestMethod().equals("GET")) {
+                neo.handleGet(request);
+            }else if(request.getRequestMethod().equals("PUT")){
 
             }else{
                 Utils.sendString(request, "Unimplemented method\n", 501 );
