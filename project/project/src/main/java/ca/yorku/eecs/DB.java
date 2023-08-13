@@ -38,6 +38,10 @@ public class DB {
                 getMovie(queryParam, request);
             }else if (path.contains("/api/v1/hasRelationship")) {
                 getHasRelationship(queryParam, request);
+            }else if (path.contains("/api/v1/computeBaconNumber")) {
+                getcomputeBaconNumber(queryParam, request);
+            }else if (path.contains("/api/v1/computeBaconPath")) {
+                getcomputeBaconPath(queryParam, request);
             }else{
                 Utils.sendString(request, "Bad request\n", 400);
             }
