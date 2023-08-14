@@ -25,12 +25,73 @@ public class DB {
         Config config = Config.builder().withoutEncryption().build();
         driver = GraphDatabase.driver(uriDb, AuthTokens.basic("neo4j", "12345678"), config);
     }
-    public void handleGet(HttpExchange request) throws IOException, JSONException {
+
+    public void handlePut(HttpExchange request) throws IOException {
+        String path = request.getRequestURI().getPath();
+        try {
+            if (path.equals("/api/v1/addActor")) {
+                String requestBody = Utils.getBody(request);
+                JSONObject json = new JSONObject(requestBody);
+                String name = json.getString("name");
+                String actorId = json.getString("actorId");
+                addActor(name, actorId);
+                Utils.sendString(request, "Actor added successfully\n", 200);
+            } else if (path.equals("/api/v1/addMovie")) {
+                String requestBody = Utils.getBody(request);
+                JSONObject json = new JSONObject(requestBody);
+                String name = json.getString("name");
+                String movieId = json.getString("movieId");
+                addMovie(name, movieId);
+                Utils.sendString(request, "Movie added successfully\n", 200);
+            } else if (path.equals("/api/v1/addRelationship")) {
+                String requestBody = Utils.getBody(request);
+                JSONObject json = new JSONObject(requestBody);
+                String actorId = json.getString("actorId");
+                String movieId = json.getString("movieId");
+                addRelationship(actorId, movieId);
+                Utils.sendString(request, "Relationship added successfully\n", 200);
+            } else {
+                Utils.sendString(request, "Bad request\n", 400);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Utils.sendString(request, "Bad request\n", 400);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Utils.sendString(request, "Server error\n", 500);
+        }
+    }
+
+
+    private void addActor(String name, String actorId) {
+        try (Session session = driver.session()) {
+            String query = "CREATE (a:Actor {name: $name, actorId: $actorId})";
+            session.writeTransaction(tx -> tx.run(query, parameters("name", name, "actorId", actorId)));
+        }
+    }
+
+    private void addMovie(String name, String movieId) {
+        try (Session session = driver.session()) {
+            String query = "CREATE (m:Movie {name: $name, movieId: $movieId})";
+            session.writeTransaction(tx -> tx.run(query, parameters("name", name, "movieId", movieId)));
+        }
+    }
+
+    private void addRelationship(String actorId, String movieId) {
+        try (Session session = driver.session()) {
+            String query = "MATCH (a:Actor {actorId: $actorId}), (m:Movie {movieId: $movieId}) " +
+                    "CREATE (a)-[:ACTED_IN]->(m)";
+            session.writeTransaction(tx -> tx.run(query, parameters("actorId", actorId, "movieId", movieId)));
+        }
+    }
+
+    public void handleGet(HttpExchange request) throws IOException{
 
             URI uri = request.getRequestURI();
             String path = uri.getPath();
             String query = uri.getQuery();
             Map<String, String> queryParam = Utils.splitQuery(query);
+
 
             if(path.contains("/api/v1/getActor")){
                 getActor(queryParam, request);
@@ -50,21 +111,28 @@ public class DB {
             driver.close();
     }
 
-    private void getActor(Map<String, String> queryParam, HttpExchange request) throws IOException, JSONException {
 
-        String id = queryParam.get("actorId");
+    private void getActor(Map<String, String> queryParam, HttpExchange request) throws IOException{
+
         try(Session session = driver.session()){
-            try(Transaction tx = session.beginTransaction()){
-                StatementResult result = tx.run("MATCH (a: actor {actorId: $actorId}) RETURN a", parameters("actorId", id));
-                if(result.hasNext()){
-                    Map<String, Object> node = result.next().get("a").asMap();
-                    JSONObject jsonNode = new JSONObject(node);
-                    Utils.sendString(request, jsonNode.toString(4), 200);
-                }else{
-                    Utils.sendString(request, "Actor not found!", 404);
-                }
 
+            if(!queryParam.containsKey("actorId") || queryParam.get("actorId").length()==0){
+                Utils.sendString(request, "Bad request: Improper formatting.\n", 400);
+            }else{
+                try(Transaction tx = session.beginTransaction()){
+                    String id = queryParam.get("actorId");
+                    StatementResult result = tx.run("MATCH (a: actor {actorId: $actorId}) RETURN a", parameters("actorId", id));
+                    if(result.hasNext()){
+                        Map<String, Object> node = result.next().get("a").asMap();
+                        JSONObject jsonNode = new JSONObject(node);
+                        Utils.sendString(request, jsonNode.toString(), 200);
+                    }else{
+                        Utils.sendString(request, "Actor not found!\n", 404);
+                    }
+
+                }
             }
+
 
         }
 
@@ -72,50 +140,76 @@ public class DB {
 
     }
 
-    private void getMovie(Map<String, String> queryParam, HttpExchange request) throws IOException, JSONException {
+    private void getMovie(Map<String, String> queryParam, HttpExchange request) throws IOException{
 
-        String id = queryParam.get("movieId");
+
         try(Session session = driver.session()){
-            try(Transaction tx = session.beginTransaction()){
-                StatementResult result = tx.run("MATCH (m: movie {movieId: $movieId}) RETURN m", parameters("movieId", id));
-                if(result.hasNext()){
-                    Map<String, Object> node = result.next().get("m").asMap();
-                    JSONObject jsonNode = new JSONObject(node);
-                    Utils.sendString(request, jsonNode.toString(4), 200);
-                }else{
-                    Utils.sendString(request, "Actor not found!", 404);
+            if(!queryParam.containsKey("movieId") || queryParam.get("movieId").length()==0){
+                Utils.sendString(request, "Bad request: Improper Formatting\n", 400);
+            }else{
+                try(Transaction tx = session.beginTransaction()){
+                    String id = queryParam.get("movieId");
+                    StatementResult result = tx.run("MATCH (m: movie {movieId: $movieId}) RETURN m", parameters("movieId", id));
+                    if(result.hasNext()){
+                        Map<String, Object> node = result.next().get("m").asMap();
+                        JSONObject jsonNode = new JSONObject(node);
+                        Utils.sendString(request, jsonNode.toString(), 200);
+                    }else{
+                        Utils.sendString(request, "Movie not found!\n", 404);
+                    }
                 }
             }
+
 
         }
     }
 
-    private void getHasRelationship(Map<String, String> queryParam, HttpExchange request) throws IOException, JSONException {
-        String actorId = queryParam.get("actorId");
-        String movieId = queryParam.get("movieId");
+
+
+
+    private void getHasRelationship(Map<String, String> queryParam, HttpExchange request) throws IOException {
+
         try(Session session = driver.session()){
-            try(Transaction tx = session.beginTransaction()){
-                StatementResult result1 = tx.run("MATCH (a: actor {actorId: $actorId}) RETURN a.actorId", parameters("actorId", actorId));
-                StatementResult result2 = tx.run("MATCH (m: movie {movieId: $movieId}) RETURN m.movieId", parameters("movieId", movieId));
-                StatementResult result3 = tx.run("RETURN EXISTS ( (a: actor {actorId: $actorId})-[:ACTED_IN*1]-(m: movie {name: $movieId})) AS bool",
-                        parameters("actorId", actorId, "movieId", movieId ));
+            if(!queryParam.containsKey("actorId") || queryParam.get("actorId").length()==0 ||!queryParam.containsKey("movieId") || queryParam.get("movieId").length()==0){
+                Utils.sendString(request, "Bad request: Improper Formatting\n", 400);
+            }else{
+                try(Transaction tx = session.beginTransaction()){
+                    String actorId = queryParam.get("actorId");
+                    String movieId = queryParam.get("movieId");
+                    StatementResult result1 = tx.run("MATCH (a: actor {actorId: $actorId}) RETURN a.actorId", parameters("actorId", actorId));
+                    StatementResult result2 = tx.run("MATCH (m: movie {movieId: $movieId}) RETURN m.movieId", parameters("movieId", movieId));
+                    StatementResult result3 = tx.run( "MATCH (a:Actor {actorId: $actorId})-[r:ACTED_IN]->(m:Movie {movieId: $movieId}) RETURN r",
+                            parameters("actorId", actorId, "movieId", movieId));
 
-                if(!result1.hasNext()){
-                    Utils.sendString(request, "Actor not found!", 404);
-                }else if (!result2.hasNext()){
-                    Utils.sendString(request, "Movie not found!", 404);
-                }else{
-                    Map<String, Object> node = new HashMap<>();
-                    node.put("actorId:", result1);
-                    node.put("movieId:", result2);
-                    node.put("hasRelationship:", result3);
-                    JSONObject jsonNode = new JSONObject(node);
-                    Utils.sendString(request, jsonNode.toString(4), 200);
+
+                    if(!result1.hasNext() && !result2.hasNext()) {
+                        Utils.sendString(request, "Actor and Movie not found!\n", 404);
+                    }else if(!result1.hasNext()){
+                        Utils.sendString(request, "Actor not found!\n", 404);
+                    }else if (!result2.hasNext()){
+                        Utils.sendString(request, "Movie not found!\n", 404);
+                    }else{
+                        Map<String, Object> node = new HashMap<>();
+                        node.put("actorId", result1.next().get("a.actorId").asString());
+                        node.put("movieId", result2.next().get("m.movieId").asString());
+                        node.put("hasRelationship:", result3.hasNext());
+                        JSONObject jsonNode = new JSONObject(node);
+                        Utils.sendString(request, jsonNode.toString(), 200);
+                    }
+
                 }
-
             }
 
+
         }
+    }
+
+
+
+    private void getcomputeBaconPath(Map<String, String> queryParam, HttpExchange request) {
+    }
+
+    private void getcomputeBaconNumber(Map<String, String> queryParam, HttpExchange request) {
     }
 
 }

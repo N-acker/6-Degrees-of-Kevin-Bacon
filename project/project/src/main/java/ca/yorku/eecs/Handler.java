@@ -15,13 +15,14 @@ public class Handler implements HttpHandler{
             if (request.getRequestMethod().equals("GET")) {
                 neo.handleGet(request);
             }else if(request.getRequestMethod().equals("PUT")){
-
+                neo.handlePut(request);
             }else{
                 Utils.sendString(request, "Unimplemented method\n", 501 );
             }
         }catch (Exception e){
             e.printStackTrace();
-            Utils.sendString(request, "Server error\n", 500);
+            String r = "Server Error: " + e.getMessage() + "\n";
+            Utils.sendString(request, r, 500);
         }
     }
 }
