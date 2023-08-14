@@ -207,9 +207,49 @@ public class DB {
 
 
     private void getcomputeBaconPath(Map<String, String> queryParam, HttpExchange request) {
+        try(Session session = driver.session()){
+            if(!queryParam.containsKey("actorId") || queryParam.get("actorId").length()==0){
+                Utils.sendString(request, "Bad request: Improper formatting.\n", 400);
+            }else {
+                try (Transaction tx = session.beginTransaction()) {
+                    String actorId = queryParam.get("actorId");
+                    StatementResult result = tx.run("MATCH p=shortestPath(\n" +
+                            "    (a:actor{actorId:\"$actorId\"})-[*]-(b:actor{actorId:\"nm0000102\"})\n" +
+                            ")\n" +
+                            "RETURN [node IN nodes(p) | node.actorId] AS BaconPath", parameters("actorId", actorId));
+                    if (result.hasNext()) {
+                        Map<String, Object> node = result.next().get("[node IN nodes(p) | node.actorId]").asMap();
+                        node.put("baconPath:", result);
+                        JSONObject jsonNode = new JSONObject(node);
+                        Utils.sendString(request, jsonNode.toString(), 200);
+                    } else {
+                        Utils.sendString(request, "Actor not found!", 404);
+                    }
+                }
+            }
+        }
     }
 
     private void getcomputeBaconNumber(Map<String, String> queryParam, HttpExchange request) {
+        try(Session session = driver.session()){
+            if(!queryParam.containsKey("actorId") || queryParam.get("actorId").length()==0){
+                Utils.sendString(request, "Bad request: Improper formatting.\n", 400);
+            }else {
+                try (Transaction tx = session.beginTransaction()) {
+                    String actorId = queryParam.get("actorId");
+                    StatementResult result = tx.run("MATCH(a:actor{actorId:\"$actorId\"})-[:ACTED_IN]->(m:movie)<-[:ACTED_IN]-(q:actor{actorId:\"nm0000102\"})\n" +
+                            "RETURN count(r);", parameters("actorId", actorId));
+                    if (result.hasNext()) {
+                        Map<String, Object> node = result.next().get("count(r)").asMap();
+                        node.put("baconNumber:", result);
+                        JSONObject jsonNode = new JSONObject(node);
+                        Utils.sendString(request, jsonNode.toString(), 200);
+                    } else {
+                        Utils.sendString(request, "Actor not found!", 404);
+                    }
+                }
+            }
+        }
     }
 
 }
