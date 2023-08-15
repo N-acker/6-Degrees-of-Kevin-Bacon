@@ -5,7 +5,9 @@ import com.sun.net.httpserver.HttpExchange;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static ca.yorku.eecs.Utils.splitQuery;
@@ -178,7 +180,7 @@ public class DB {
                     String movieId = queryParam.get("movieId");
                     StatementResult result1 = tx.run("MATCH (a: actor {actorId: $actorId}) RETURN a.actorId", parameters("actorId", actorId));
                     StatementResult result2 = tx.run("MATCH (m: movie {movieId: $movieId}) RETURN m.movieId", parameters("movieId", movieId));
-                    StatementResult result3 = tx.run( "MATCH (a:Actor {actorId: $actorId})-[r:ACTED_IN]->(m:Movie {movieId: $movieId}) RETURN r",
+                    StatementResult result3 = tx.run( "MATCH (a:actor {actorId: $actorId})-[r:ACTED_IN]->(m:movie {movieId: $movieId}) RETURN r",
                             parameters("actorId", actorId, "movieId", movieId));
 
 
@@ -192,7 +194,7 @@ public class DB {
                         Map<String, Object> node = new HashMap<>();
                         node.put("actorId", result1.next().get("a.actorId").asString());
                         node.put("movieId", result2.next().get("m.movieId").asString());
-                        node.put("hasRelationship:", result3.hasNext());
+                        node.put("hasRelationship", result3.hasNext());
                         JSONObject jsonNode = new JSONObject(node);
                         Utils.sendString(request, jsonNode.toString(), 200);
                     }
@@ -206,7 +208,7 @@ public class DB {
 
 
 
-    private void getcomputeBaconPath(Map<String, String> queryParam, HttpExchange request) {
+    private void getcomputeBaconPath(Map<String, String> queryParam, HttpExchange request) throws IOException{
         try(Session session = driver.session()){
             if(!queryParam.containsKey("actorId") || queryParam.get("actorId").length()==0){
                 Utils.sendString(request, "Bad request: Improper formatting.\n", 400);
@@ -230,7 +232,7 @@ public class DB {
         }
     }
 
-    private void getcomputeBaconNumber(Map<String, String> queryParam, HttpExchange request) {
+    private void getcomputeBaconNumber(Map<String, String> queryParam, HttpExchange request) throws IOException{
         try(Session session = driver.session()){
             if(!queryParam.containsKey("actorId") || queryParam.get("actorId").length()==0){
                 Utils.sendString(request, "Bad request: Improper formatting.\n", 400);
