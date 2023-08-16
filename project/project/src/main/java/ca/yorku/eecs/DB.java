@@ -147,9 +147,9 @@ public class DB {
             }else if (path.contains("/api/v1/hasRelationship")) {
                 getHasRelationship(queryParam, request);
             }else if (path.contains("/api/v1/computeBaconNumber")) {
-                getcomputeBaconNumber(queryParam, request);
+                computeBaconNumber(queryParam, request);
             }else if (path.contains("/api/v1/computeBaconPath")) {
-                getcomputeBaconPath(queryParam, request);
+                computeBaconPath(queryParam, request);
             }else{
                 Utils.sendString(request, "Bad request\n", 400);
             }
@@ -252,51 +252,79 @@ public class DB {
     }
 
 
-
-    private void getcomputeBaconPath(Map<String, String> queryParam, HttpExchange request) throws IOException{
-        try(Session session = driver.session()){
-            if(!queryParam.containsKey("actorId") || queryParam.get("actorId").length()==0){
+    private void computeBaconNumber(Map<String, String> queryParam, HttpExchange request) throws IOException {
+        try (Session session = driver.session()) {
+            if (!queryParam.containsKey("actorId") || queryParam.get("actorId").isEmpty()) {
                 Utils.sendString(request, "Bad request: Improper formatting.\n", 400);
-            }else {
+            } else {
                 try (Transaction tx = session.beginTransaction()) {
                     String actorId = queryParam.get("actorId");
-                    StatementResult result = tx.run("MATCH p=shortestPath(\n" +
-                            "    (a:actor{actorId:$actorId})-[*]-(b:actor{actorId:\"nm0000102\"})\n" +
-                            ")\n" +
-                            "RETURN [node IN nodes(p) | node.actorId] AS BaconPath", parameters("actorId", actorId));
-                    if (result.hasNext()) {
-                        Map<String, Object> node = result.next().get("[node IN nodes(p) | node.actorId]").asMap();
-                        node.put("baconPath:", result);
-                        JSONObject jsonNode = new JSONObject(node);
-                        Utils.sendString(request, jsonNode.toString(), 200);
+                    if(actorId.equals("nm0000102")){
+                        JSONObject responseJson = new JSONObject();
+                        responseJson.put("baconNumber", 0);
+                        Utils.sendString(request, responseJson.toString(), 200);
+                        return;
+                    }
+                    StatementResult check = tx.run("MATCH (a: actor {actorId: $actorId}) RETURN a", parameters("actorId", actorId));
+                    if (check.hasNext()) {
+                        String baconId = "nm0000102";
+                        StatementResult result = tx.run("MATCH p = shortestPath((a: actor {actorId: $actorId})-[:ACTED_IN*]-(k: actor {actorId: $kevinBaconId})) RETURN length(p)/2 AS kbNum", parameters("actorId", actorId, "kevinBaconId", baconId));
+                        if(result.hasNext()){
+                            int baconNumber = result.next().get("kbNum").asInt();
+                            JSONObject responseJson = new JSONObject();
+                            responseJson.put("baconNumber", baconNumber);
+                            Utils.sendString(request, responseJson.toString(), 200);
+                        }else{
+                            Utils.sendString(request, "There is no Bacon path", 404);
+                        }
                     } else {
                         Utils.sendString(request, "Actor not found!", 404);
                     }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    String r = "Server Error: " + e.getMessage() + "\n";
+                    Utils.sendString(request, r, 500);
                 }
             }
         }
     }
 
-    private void getcomputeBaconNumber(Map<String, String> queryParam, HttpExchange request) throws IOException{
-        try(Session session = driver.session()){
-            if(!queryParam.containsKey("actorId") || queryParam.get("actorId").length()==0){
+    private void computeBaconPath(Map<String, String> queryParam, HttpExchange request) throws IOException {
+        try (Session session = driver.session()) {
+            if (!queryParam.containsKey("actorId") || queryParam.get("actorId").isEmpty()) {
                 Utils.sendString(request, "Bad request: Improper formatting.\n", 400);
-            }else {
+            } else {
                 try (Transaction tx = session.beginTransaction()) {
                     String actorId = queryParam.get("actorId");
-                    StatementResult result = tx.run("MATCH(a:actor{actorId: $actorId})-[:ACTED_IN]->(m:movie)<-[:ACTED_IN]-(q:actor{actorId:\"nm0000102\"})\n" +
-                            "RETURN count(r);", parameters("actorId", actorId));
-                    if (result.hasNext()) {
-                        Map<String, Object> node = result.next().get("count(r)").asMap();
-                        node.put("baconNumber:", result);
-                        JSONObject jsonNode = new JSONObject(node);
-                        Utils.sendString(request, jsonNode.toString(), 200);
+                    if(actorId.equals("nm0000102")){
+                        JSONObject responseJson = new JSONObject();
+                        responseJson.put("baconNumber", 0);
+                        Utils.sendString(request, responseJson.toString(), 200);
+                        return;
+                    }
+                    StatementResult check = tx.run("MATCH (a: actor {actorId: $actorId}) RETURN a", parameters("actorId", actorId));
+                    if (check.hasNext()) {
+                        String baconId = "nm0000102";
+                        StatementResult result = tx.run("MATCH p = shortestPath((a: actor {actorId: $actorId})-[:ACTED_IN*]-(k: actor {actorId: $kevinBaconId})) RETURN length(p)/2 AS kbNum", parameters("actorId", actorId, "kevinBaconId", baconId));
+                        if(result.hasNext()){
+                            int baconNumber = result.next().get("kbNum").asInt();
+                            JSONObject responseJson = new JSONObject();
+                            responseJson.put("baconNumber", baconNumber);
+                            Utils.sendString(request, responseJson.toString(), 200);
+                        }else{
+                            Utils.sendString(request, "There is no Bacon path", 404);
+                        }
                     } else {
                         Utils.sendString(request, "Actor not found!", 404);
                     }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    String r = "Server Error: " + e.getMessage() + "\n";
+                    Utils.sendString(request, r, 500);
                 }
             }
         }
     }
+
 
 }
