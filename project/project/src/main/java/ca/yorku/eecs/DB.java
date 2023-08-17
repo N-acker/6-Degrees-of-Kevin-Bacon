@@ -3,16 +3,12 @@ package ca.yorku.eecs;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static ca.yorku.eecs.Utils.splitQuery;
 import static org.neo4j.driver.v1.Values.parameters;
-import org.neo4j.driver.v1.Value;
 
 
 import org.json.JSONArray;
