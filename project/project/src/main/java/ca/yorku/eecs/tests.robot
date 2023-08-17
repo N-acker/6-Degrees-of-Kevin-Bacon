@@ -6,38 +6,102 @@ Test Timeout      30 seconds
 Suite Setup    Create Session    localhost    http://localhost:8080
 
 *** Test Cases ***
-addAuthorPass
+addActorPass
     ${headers}=    Create Dictionary    Content-Type=application/json
-    ${params}=    Create Dictionary    author=George Orwell    authorId=nm1
-    ${resp}=    PUT On Session    localhost    /api/book/addAuthor    json=${params}    headers=${headers}    expected_status=200
+    ${params}=    Create Dictionary    name=Jennifer Lawrence    actorId=nm0000044
+    ${resp}=    PUT On Session    localhost    /api/v1/addActor   json=${params}    headers=${headers}    expected_status=200
 
-addAuthorFail
+addActorFail
     ${headers}=    Create Dictionary    Content-Type=application/json
-    ${params}=    Create Dictionary    name=Devin
-    ${resp}=    PUT On Session    localhost    /api/book/addAuthor    json=${params}    headers=${headers}    expected_status=400
+    ${params}=    Create Dictionary    name=Zendaya
+    ${resp}=    PUT On Session    localhost    /api/v1/addActor    json=${params}    headers=${headers}    expected_status=400
 
-addTitlePass
+addMoviePass
     ${headers}=    Create Dictionary    Content-Type=application/json
-    ${params}=    Create Dictionary    title=1984    movieId=tt1
-    ${resp}=    PUT On Session    localhost    /api/book/addTitle    json=${params}    headers=${headers}    expected_status=200
+    ${params}=    Create Dictionary    name=Hunger Games   movieId=nm0009836
+    ${resp}=    PUT On Session    localhost    /api/v1/addMovie    json=${params}    headers=${headers}    expected_status=200
 
-addTitleFail
+addMovieFail
     ${headers}=    Create Dictionary    Content-Type=application/json
-    ${params}=    Create Dictionary    name=Animal Farm    movieId=tt2
-    ${resp}=    PUT On Session    localhost    /api/book/addTitle    json=${params}    headers=${headers}    expected_status=400
+    ${params}=    Create Dictionary    name=Barnyard
+    ${resp}=    PUT On Session    localhost    /api/v1/addMovie    json=${params}    headers=${headers}    expected_status=400
 
-addBookPass
+addRelationshipPass
     ${headers}=    Create Dictionary    Content-Type=application/json
-    ${params}=    Create Dictionary    author=George Orwell    title=1984
-    ${resp}=    PUT On Session    localhost    /api/book/addBook    json=${params}    headers=${headers}    expected_status=200
+    ${params}=    Create Dictionary    actorId=nm0000044    movieId=nm0009836
+    ${resp}=    PUT On Session    localhost    /api/v1/addRelationship    json=${params}    headers=${headers}    expected_status=200
 
-addBookFail
+addRelationshipFail
     ${headers}=    Create Dictionary    Content-Type=application/json
-    ${params}=    Create Dictionary    author=George Orwell    name=Animal Farm
-    ${resp}=    PUT On Session    localhost    /api/book/addBook    json=${params}    headers=${headers}    expected_status=400
+    ${params}=    Create Dictionary    actorId=Jennifer Lawrence    name=nm0009836
+    ${resp}=    PUT On Session    localhost    /api/v1/addRelationship    json=${params}    headers=${headers}    expected_status=404
 
-printBookPass
+getActorPass
     ${headers}=    Create Dictionary    Content-Type=application/json
-    ${params}=    Create Dictionary    author=George Orwell    title=1984
-    ${resp}=    GET On Session    localhost    /api/book/printBook    params=${params}    headers=${headers}    expected_status=200
-    Dictionary Should Contain Value    ${resp.json()}    George Orwell wrote 1984
+    ${params}=    Create Dictionary    actorId=nm0000044
+    ${resp}=    GET On Session    localhost    /api/v1/getActor    params=${params}    headers=${headers}
+    Should Be Equal As Strings    ${resp.status_code}    200
+    ${json}=    Evaluate    ${resp.json()}
+    Should Contain    ${json}    Jennifer Lawrence
+
+getActorFail
+    ${headers}=    Create Dictionary    Content-Type=application/json
+    ${params}=    Create Dictionary    actorId=non_existent_id
+    ${resp}=    GET On Session    localhost    /api/v1/getActor    params=${params}    headers=${headers}
+    Should Be Equal As Strings    ${resp.status_code}    404
+
+getMoviePass
+    ${headers}=    Create Dictionary    Content-Type=application/json
+    ${params}=    Create Dictionary    movieId=nm0009836
+    ${resp}=    GET On Session    localhost    /api/v1/getMovie    params=${params}    headers=${headers}
+    Should Be Equal As Strings    ${resp.status_code}    200
+    ${json}=    Evaluate    ${resp.json()}
+    Should Contain    ${json}    Hunger Games
+
+getMovieFail
+    ${headers}=    Create Dictionary    Content-Type=application/json
+    ${params}=    Create Dictionary    movieId=non_existent_id
+    ${resp}=    GET On Session    localhost    /api/v1/getMovie    params=${params}    headers=${headers}
+    Should Be Equal As Strings    ${resp.status_code}    404
+
+hasRelationshipPass
+    ${headers}=    Create Dictionary    Content-Type=application/json
+    ${params}=    Create Dictionary    actorId=nm0000044    movieId=nm0009836
+    ${resp}=    GET On Session    localhost    /api/v1/hasRelationship    params=${params}    headers=${headers}
+    Should Be Equal As Strings    ${resp.status_code}    200
+    ${json}=    Evaluate    ${resp.json()}
+    Should Contain    ${json}    true
+
+hasRelationshipFail
+    ${headers}=    Create Dictionary    Content-Type=application/json
+    ${params}=    Create Dictionary    actorId=nm0000044    movieId=non_existent_id
+    ${resp}=    GET On Session    localhost    /api/v1/hasRelationship    params=${params}    headers=${headers}
+    Should Be Equal As Strings    ${resp.status_code}    404
+
+computeBaconNumberPass
+    ${headers}=    Create Dictionary    Content-Type=application/json
+    ${params}=    Create Dictionary    actorId=nm0000044
+    ${resp}=    GET On Session    localhost    /api/v1/computeBaconNumber    params=${params}    headers=${headers}
+    Should Be Equal As Strings    ${resp.status_code}    200
+    ${json}=    Evaluate    ${resp.json()}
+    Should Contain    ${json}    baconNumber:
+
+computeBaconNumberFail
+    ${headers}=    Create Dictionary    Content-Type=application/json
+    ${params}=    Create Dictionary    actorId=non_existent_id
+    ${resp}=    GET On Session    localhost    /api/v1/computeBaconNumber    params=${params}    headers=${headers}
+    Should Be Equal As Strings    ${resp.status_code}    404
+
+computeBaconPathPass
+    ${headers}=    Create Dictionary    Content-Type=application/json
+    ${params}=    Create Dictionary    actorId=nm0000044
+    ${resp}=    GET On Session    localhost    /api/v1/computeBaconPath    params=${params}    headers=${headers}
+    Should Be Equal As Strings    ${resp.status_code}    200
+    ${json}=    Evaluate    ${resp.json()}
+    Should Contain    ${json}    baconPath:
+
+computeBaconPathFail
+    ${headers}=    Create Dictionary    Content-Type=application/json
+    ${params}=    Create Dictionary    actorId=non_existent_id
+    ${resp}=    GET On Session    localhost    /api/v1/computeBaconPath    params=${params}    headers=${headers}
+    Should Be Equal As Strings    ${resp.status_code}    404

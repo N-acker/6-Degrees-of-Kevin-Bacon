@@ -12,10 +12,14 @@ import java.util.Map;
 
 import static ca.yorku.eecs.Utils.splitQuery;
 import static org.neo4j.driver.v1.Values.parameters;
+import org.neo4j.driver.v1.Value;
 
+
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.neo4j.driver.v1.*;
+import org.neo4j.driver.v1.types.Node;
 
 public class DB {
 
@@ -36,23 +40,20 @@ public class DB {
             } else if (path.contains("/api/v1/addMovie")) {
                 addMovie(request);
             } else if (path.contains("/api/v1/addRelationship")) {
-//                String requestBody = Utils.getBody(request);
-//                JSONObject json = new JSONObject(requestBody);
-//                String actorId = json.getString("actorId");
-//                String movieId = json.getString("movieId");
-//                addRelationship(actorId, movieId);
-//                Utils.sendString(request, "Relationship added successfully\n", 200);
+                addRelationship(request);
+            }else if (path.contains("/api/v1/addReview")) {
+                addReview(request);
             } else{
                 Utils.sendString(request, "Bad request: query method not spelled correctly\n", 400);
             }
 
-
-            driver.close();
         } catch (IOException e) {
             e.printStackTrace();
             String r = "Server Error: " + e.getMessage() + "\n";
             Utils.sendString(request, r, 500);
         }
+
+        driver.close();
     }
 
 
@@ -61,8 +62,8 @@ public class DB {
         try{
             String requestBody = Utils.getBody(request);
             JSONObject json = new JSONObject(requestBody);
-            String name = json.getString("name");
-            String actorId = json.getString("actorId");
+            String name = json.optString("name", null);
+            String actorId = json.optString("actorId", null);
 
             if(name==null || actorId==null || name.isEmpty() || actorId.isEmpty()){
                 Utils.sendString(request, "Improper Formatting: missing input", 400);
@@ -95,9 +96,9 @@ public class DB {
         try{
             String requestBody = Utils.getBody(request);
             JSONObject json = new JSONObject(requestBody);
-            String name = json.getString("name");
-            String movieId = json.getString("movieId");
-            int rating = json.getInt("rating");
+            String name = json.optString("name", null);
+            String movieId = json.optString("movieId", null);
+            String review = "Movie has not been reviewed";
             if(name==null || movieId==null || name.isEmpty() || movieId.isEmpty()){
                 Utils.sendString(request, "Improper Formatting: missing input", 400);
             }else{
@@ -105,7 +106,7 @@ public class DB {
                     try (Transaction tx = session.beginTransaction()) {
                         StatementResult result = tx.run("MATCH (m: movie {movieId: $movieId}) RETURN m", parameters("movieId", movieId));
                         if(!result.hasNext()){
-                            tx.run("CREATE (m: movie {movieId: $movieId, name: $name, rating: $rating, actors: []})", parameters("movieId", movieId, "name", name, "rating", rating));
+                            tx.run("CREATE (m: movie {movieId: $movieId, name: $name, review: $review, actors: []})", parameters("movieId", movieId, "name", name, "review", review));
                             tx.success();
                             Utils.sendString(request, "Movie Added Successfully", 200);
                         }else{
@@ -124,12 +125,82 @@ public class DB {
         }
     }
 
-    private void addRelationship(String actorId, String movieId) throws IOException{
-        try (Session session = driver.session()) {
-            String query = "MATCH (a:Actor {actorId: $actorId}), (m:Movie {movieId: $movieId}) " +
-                    "CREATE (a)-[:ACTED_IN]->(m)";
-            session.writeTransaction(tx -> tx.run(query, parameters("actorId", actorId, "movieId", movieId)));
+//    this is our feature, it adds a review
+    private void addReview(HttpExchange request) throws IOException{
+        try{
+            String requestBody = Utils.getBody(request);
+            JSONObject json = new JSONObject(requestBody);
+            String rating = json.optString("review");
+            String movieId = json.optString("movieId", null);
+            if(rating==null || movieId==null || rating.isEmpty() || movieId.isEmpty()){
+                Utils.sendString(request, "Improper Formatting: missing input", 400);
+            }else{
+                try (Session session = driver.session()) {
+                    try (Transaction tx = session.beginTransaction()) {
+                        StatementResult result = tx.run("MATCH (m: movie {movieId: $movieId}) RETURN m", parameters("movieId", movieId));
+                        if(result.hasNext()){
+                            tx.run("MATCH (m:movie {movieId: $movieId})" + "SET m.review = $rating", parameters( "movieId", movieId, "rating", rating));
+                            tx.success();
+                            Utils.sendString(request, "Rating Added Successfully", 200);
+                        }else{
+                            Utils.sendString(request, "Movie Doesn't Exist", 400);
+                        }
+
+                    }
+
+
+                }
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+            String r = "Server Error: " + e.getMessage() + "\n";
+            Utils.sendString(request, r, 500);
         }
+    }
+
+    private void addRelationship(HttpExchange request) throws IOException{
+        try{
+            String requestBody = Utils.getBody(request);
+            JSONObject json = new JSONObject(requestBody);
+            String actorId = json.optString("actorId", null);
+            String movieId = json.optString("movieId", null);
+
+            if(actorId==null || movieId==null || actorId.isEmpty() || movieId.isEmpty()){
+                Utils.sendString(request, "Improper Formatting: missing input", 400);
+            }else{
+                try (Session session = driver.session()) {
+                    try (Transaction tx = session.beginTransaction()) {
+                        StatementResult hasRel = tx.run( "MATCH (a:actor {actorId: $actorId})-[r:ACTED_IN]->(m:movie {movieId: $movieId}) RETURN r", parameters("actorId", actorId, "movieId", movieId));
+                        Map<String, Object> node = new HashMap<>();
+                        node.put("result",hasRel.hasNext());
+                        if(node.get("result").equals(true)){
+                            Utils.sendString(request, "Relationship Exists Already", 400);
+                            return;
+                        }
+                        StatementResult actorIdCheck = tx.run("MATCH (a: actor {actorId: $actorId}) RETURN a", parameters("actorId", actorId));
+                        StatementResult movieIdCheck = tx.run("MATCH (m: movie {movieId: $movieId}) RETURN m", parameters("movieId", movieId));
+                        if(!actorIdCheck.hasNext()){
+                            Utils.sendString(request, "Actor not found!\n", 404);
+                        }else if(!movieIdCheck.hasNext()){
+                            Utils.sendString(request, "Movie not found!\n", 404);
+                        }else{
+                            tx.run("MATCH (a:actor {actorId: $actorId}), (m:movie {movieId: $movieId})" + "CREATE (a)-[:ACTED_IN]->(m)", parameters("actorId", actorId, "movieId", movieId));
+                            tx.run("MATCH (m:movie {movieId: $movieId})" + "SET m.actors = m.actors + $actorId", parameters("actorId", actorId, "movieId", movieId));
+                            tx.run("MATCH (a:actor {actorId: $actorId}) " + "SET a.movies = a.movies + $movieId", parameters("actorId", actorId, "movieId", movieId));
+                            tx.success();
+                            Utils.sendString(request, "Relationship Added Successfully", 200);
+                        }
+
+                    }
+
+                }
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+            String r = "Server Error: " + e.getMessage() + "\n";
+            Utils.sendString(request, r, 500);
+        }
+
     }
 
     public void handleGet(HttpExchange request) throws IOException{
@@ -296,20 +367,32 @@ public class DB {
             } else {
                 try (Transaction tx = session.beginTransaction()) {
                     String actorId = queryParam.get("actorId");
+                    JSONObject responseJson = new JSONObject();
                     if(actorId.equals("nm0000102")){
-                        JSONObject responseJson = new JSONObject();
-                        responseJson.put("baconNumber", 0);
+                        JSONArray emptyPath = new JSONArray();
+                        emptyPath.put(actorId);
+                        responseJson.put("baconNumber", emptyPath);
                         Utils.sendString(request, responseJson.toString(), 200);
                         return;
                     }
                     StatementResult check = tx.run("MATCH (a: actor {actorId: $actorId}) RETURN a", parameters("actorId", actorId));
                     if (check.hasNext()) {
                         String baconId = "nm0000102";
-                        StatementResult result = tx.run("MATCH p = shortestPath((a: actor {actorId: $actorId})-[:ACTED_IN*]-(k: actor {actorId: $kevinBaconId})) RETURN length(p)/2 AS kbNum", parameters("actorId", actorId, "kevinBaconId", baconId));
+                        StatementResult result = tx.run("MATCH path=shortestPath((a:actor {actorId: $actorId})-[:ACTED_IN*]-(k:actor {actorId: $kevinBaconId})) RETURN nodes(path) AS nodes", parameters("actorId", actorId, "kevinBaconId", baconId));
                         if(result.hasNext()){
-                            int baconNumber = result.next().get("kbNum").asInt();
-                            JSONObject responseJson = new JSONObject();
-                            responseJson.put("baconNumber", baconNumber);
+                            JSONArray path = new JSONArray();
+                            List<Object> list = result.single().get("nodes").asList();
+                            for (Object node : list) {
+                                if (node instanceof Node) {
+                                    Node n = (Node)node;
+                                    if (n.hasLabel("actor")) {
+                                        path.put(n.get("actorId").asString());
+                                    } else if (n.hasLabel("movie")) {
+                                        path.put(n.get("movieId").asString());
+                                    }
+                                }
+                            }
+                            responseJson.put("baconPath", path);
                             Utils.sendString(request, responseJson.toString(), 200);
                         }else{
                             Utils.sendString(request, "There is no Bacon path", 404);
