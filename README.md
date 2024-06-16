@@ -1,4 +1,4 @@
-This project is a backend for a service that computes the six degrees of Kevin Bacon which is basically the shortest path between Kevin Bacon and a given actor in the database.
+This project is a backend for a service that computes the six degrees of Kevin Bacon which is represents the shortest path between Kevin Bacon and a given actor in the database.
 
 The backend model containing the Http server, server context and REST API endpoints were implemented using Java. 
 
