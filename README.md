@@ -1,13 +1,30 @@
-This project is a backend for a service that computes the six degrees of Kevin Bacon which is represents the shortest path between Kevin Bacon and a given actor in the database.
+# 🎬 Six Degrees of Kevin Bacon
 
-The backend model containing the Http server, server context and REST API endpoints were implemented using Java. 
+A backend service that calculates the shortest path between actor Kevin Bacon and any other actor in the database, illustrating the "six degrees of separation" concept within the film industry.
 
-The endpoints for addActor, addMovie, addRelationship, and addReview represent PUT requests.
+## 🛠️ Project Overview
 
-The endpoints for getMovie, getActor, hasRelationship, computeBaconNumber and computeBaconPath represent GET requests. 
+This project implements a RESTful API using **Java** to determine the minimal connection steps between Kevin Bacon and other actors based on their shared movie appearances. It leverages the **Neo4j** graph database to model and query relationships efficiently.
 
-The REST API endpoints were supported by Neo4j graph databases.
+## 🎯 Key Features
 
-The project was tested using the Robot Framework.
+- **Actor and Movie Management**: Add and retrieve actor and movie data through dedicated API endpoints.
+- **Relationship Mapping**: Establish and query relationships between actors and movies to build the connection graph.
+- **Bacon Number Calculation**: Compute the "Bacon Number," representing the number of connections between Kevin Bacon and a specified actor.
+- **Shortest Path Determination**: Identify the shortest path of collaborations linking Kevin Bacon to another actor.
 
-Postman was used throughout the project to help evaluate the status of each endpoint. 
+## 🔧 Technologies Used
+
+- **Java**: Core programming language for implementing the backend logic.
+- **Neo4j**: Graph database utilized to store and manage actor-movie relationships.
+- **Robot Framework**: Employed for testing the functionality and reliability of the API endpoints.
+- **Postman**: Used to evaluate and debug the status of each endpoint during development.
+
+## 🚀 Getting Started
+
+To set up and run this project locally:
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/N-acker/6-Degrees-of-Kevin-Bacon.git
+
